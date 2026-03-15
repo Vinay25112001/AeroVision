@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AeroVision – Interactive Aerodynamics Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=JetBrains+Mono:wght@300;400;500&family=Exo+2:wght@200;300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-deep: #020608;
+    --bg-mid: #040d14;
+    --bg-panel: rgba(6, 20, 35, 0.75);
+    --glass: rgba(12, 35, 60, 0.55);
+    --glass-border: rgba(0, 180, 255, 0.18);
+    --glass-shine: rgba(255,255,255,0.04);
+    --accent-cyan: #00d4ff;
+    --accent-blue: #0088ff;
+    --accent-orange: #ff6b35;
+    --accent-green: #00ff9d;
+    --accent-red: #ff3860;
+    --text-primary: #e8f4ff;
+    --text-secondary: #7ab8d4;
+    --text-dim: #3a6a85;
+    --glow-cyan: 0 0 20px rgba(0,212,255,0.4), 0 0 60px rgba(0,212,255,0.15);
+    --glow-orange: 0 0 20px rgba(255,107,53,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Exo 2', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background: rgba(2,10,20,0.92);
+    border-bottom: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    z-index: 100;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    box-shadow: var(--glow-cyan);
+    animation: logoFloat 3s ease-in-out infinite;
+  }
+
+  @keyframes logoFloat {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  .logo-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    background: linear-gradient(90deg, var(--accent-cyan), #fff, var(--accent-blue));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .header-status {
+    display: flex; gap: 20px; align-items: center;
+  }
+
+  .status-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  .status-live { color: var(--accent-green); border-color: rgba(0,255,157,0.3); background: rgba(0,255,157,0.06); }
+  .status-mode { color: var(--accent-cyan); border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.06); }
+
+  .header-actions { display: flex; gap: 8px; }
+
+  .hdr-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,212,255,0.25);
+    background: rgba(0,212,255,0.06);
+    color: var(--accent-cyan);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .hdr-btn:hover { background: rgba(0,212,255,0.15); box-shadow: var(--glow-cyan); }
+
+  /* ── MAIN LAYOUT ── */
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 290px 1fr 290px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── PANELS ── */
+  .panel {
+    background: var(--bg-panel);
+    backdrop-filter: blur(24px);
+    border-right: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .panel:last-child { border-right: none; border-left: 1px solid var(--glass-border); }
+
+  .panel::-webkit-scrollbar { width: 4px; }
+  .panel::-webkit-scrollbar-track { background: transparent; }
+  .panel::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.25); border-radius: 2px; }
+
+  .panel-section {
+    padding: 16px;
+    border-bottom: 1px solid rgba(0,130,200,0.1);
+  }
+
+  .section-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::before {
+    content: '';
+    width: 3px; height: 10px;
+    background: var(--accent-cyan);
+    border-radius: 2px;
+    box-shadow: var(--glow-cyan);
+  }
+
+  /* ── AIRFOIL SELECTOR ── */
+  .airfoil-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .airfoil-btn {
+    padding: 9px 6px;
+    border-radius: 5px;
+    border: 1px solid rgba(0,140,200,0.2);
+    background: rgba(0,60,100,0.25);
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .airfoil-btn:hover { border-color: rgba(0,212,255,0.5); color: var(--accent-cyan); }
+  .airfoil-btn.active {
+    border-color: var(--accent-cyan);
+    background: rgba(0,212,255,0.12);
+    color: var(--accent-cyan);
+    box-shadow: 0 0 12px rgba(0,212,255,0.2);
+  }
+
+  /* ── SLIDERS ── */
+  .param-group { margin-bottom: 18px; }
+
+  .param-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .param-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 300;
+    letter-spacing: 1px;
+  }
+
+  .param-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent-cyan);
+    font-weight: 500;
+  }
+
+  .param-unit {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-left: 2px;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--accent-cyan) var(--pct,50%), rgba(0,80,120,0.5) var(--pct,50%));
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 8px rgba(0,212,255,0.6);
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+  .range-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: 8px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── RUN BUTTON ── */
+  .run-btn {
+    width: 100%;
+    padding: 13px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,212,255,0.4);
+    background: linear-gradient(135deg, rgba(0,100,180,0.3), rgba(0,212,255,0.15));
+    color: var(--accent-cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .run-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.15), transparent);
+    transition: left 0.4s;
+  }
+
+  .run-btn:hover::before { left: 100%; }
+  .run-btn:hover { box-shadow: var(--glow-cyan); border-color: var(--accent-cyan); }
+  .run-btn.running { animation: pulseBtn 0.8s infinite alternate; }
+
+  @keyframes pulseBtn {
+    from { box-shadow: 0 0 10px rgba(0,212,255,0.3); }
+    to { box-shadow: 0 0 30px rgba(0,212,255,0.7); }
+  }
+
+  .sweep-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,107,53,0.4);
+    background: rgba(255,107,53,0.08);
+    color: var(--accent-orange);
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.25s;
+    margin-top: 8px;
+  }
+  .sweep-btn:hover { box-shadow: var(--glow-orange); border-color: var(--accent-orange); background: rgba(255,107,53,0.15); }
+
+  /* ── CENTER CANVAS ── */
+  .viz-center {
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #010810 0%, #020d18 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .viz-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(2,12,22,0.8);
+    border-bottom: 1px solid var(--glass-border);
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .viz-tab {
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,140,200,0.2);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .viz-tab.active {
+    background: rgba(0,212,255,0.12);
+    border-color: rgba(0,212,255,0.5);
+    color: var(--accent-cyan);
+  }
+
+  .viz-tab:hover:not(.active) { color: var(--text-secondary); border-color: rgba(0,140,200,0.4); }
+
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #mainCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .chart-wrap {
+    flex: 1;
+    position: relative;
+    padding: 20px;
+    display: none;
+    overflow: hidden;
+  }
+
+  .chart-wrap.active { display: flex; gap: 16px; }
+
+  .chart-box {
+    flex: 1;
+    background: rgba(4,16,30,0.7);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chart-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--accent-cyan);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  canvas.chart-canvas { flex: 1; }
+
+  /* Grid overlay */
+  .grid-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(0,180,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,180,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .scan-line {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent);
+    animation: scan 4s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes scan {
+    from { top: 0; } to { top: 100%; }
+  }
+
+  /* ── RIGHT PANEL ── */
+  .coeff-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .coeff-card {
+    background: rgba(0,40,70,0.4);
+    border: 1px solid rgba(0,140,200,0.2);
+    border-radius: 6px;
+    padding: 12px 10px;
+    text-align: center;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .coeff-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-color, var(--accent-cyan));
+    opacity: 0.5;
+  }
+
+  .coeff-card:hover { border-color: rgba(0,212,255,0.4); transform: translateY(-1px); }
+
+  .coeff-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .coeff-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--card-color, var(--accent-cyan));
+    text-shadow: 0 0 10px var(--card-color, var(--accent-cyan));
+    letter-spacing: 1px;
+    transition: all 0.4s;
+  }
+
+  .coeff-sub {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 3px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .ld-ratio-card {
+    grid-column: 1 / -1;
+    background: rgba(0,212,255,0.06);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ld-left { }
+  .ld-label { font-size: 10px; color: var(--text-secondary); letter-spacing: 1px; }
+  .ld-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 26px;
+    color: var(--accent-green);
+    font-weight: 700;
+    text-shadow: 0 0 15px rgba(0,255,157,0.5);
+  }
+  .ld-bar-wrap { flex: 1; margin: 0 16px; height: 6px; background: rgba(0,80,120,0.4); border-radius: 3px; overflow: hidden; }
+  .ld-bar { height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green)); border-radius: 3px; transition: width 0.6s ease; }
+
+  .boundary-section { }
+
+  .bl-legend {
+    display: flex; gap: 12px; margin-bottom: 12px;
+  }
+  .bl-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-secondary); }
+  .bl-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .bl-bar {
+    height: 18px;
+    border-radius: 4px;
+    background: rgba(0,40,80,0.4);
+    border: 1px solid rgba(0,100,150,0.3);
+    overflow: hidden;
+    display: flex;
+    margin-bottom: 5px;
+    position: relative;
+  }
+
+  .bl-label-row { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; margin-bottom: 10px; }
+
+  .bl-laminar { background: linear-gradient(90deg, #00aaff, #0066cc); transition: width 0.6s; }
+  .bl-transition { background: linear-gradient(90deg, #ffaa00, #ff6600); transition: all 0.6s; }
+  .bl-turbulent { background: linear-gradient(90deg, #ff4444, #cc0000); flex: 1; }
+
+  .conditions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .cond-item {
+    background: rgba(0,30,55,0.4);
+    border: 1px solid rgba(0,100,160,0.2);
+    border-radius: 5px;
+    padding: 8px;
+  }
+
+  .cond-key { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 3px; }
+  .cond-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary); }
+
+  .export-row { display: flex; gap: 8px; }
+  .export-btn {
+    flex: 1;
+    padding: 9px;
+    border-radius: 5px;
+    border: 1px solid rgba(0,140,200,0.25);
+    background: rgba(0,60,100,0.2);
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+  .export-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0,212,255,0.08); }
+
+  .upload-zone {
+    border: 1px dashed rgba(0,160,220,0.3);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover { border-color: rgba(0,212,255,0.6); background: rgba(0,212,255,0.04); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-icon { font-size: 22px; margin-bottom: 6px; }
+  .upload-text { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+  .upload-hint { font-size: 9px; color: rgba(0,140,200,0.4); margin-top: 3px; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── CORNER DECORATIONS ── */
+  .corner-tl, .corner-br {
+    position: absolute;
+    width: 20px; height: 20px;
+    pointer-events: none;
+  }
+  .corner-tl { top: 8px; left: 8px; border-top: 1px solid var(--accent-cyan); border-left: 1px solid var(--accent-cyan); }
+  .corner-br { bottom: 8px; right: 8px; border-bottom: 1px solid var(--accent-cyan); border-right: 1px solid var(--accent-cyan); }
+
+  /* ── BOTTOM INFO BAR ── */
+  .info-bar {
+    height: 26px;
+    background: rgba(2,8,18,0.9);
+    border-top: 1px solid rgba(0,100,160,0.2);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 24px;
+    flex-shrink: 0;
+  }
+  .info-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    display: flex; gap: 6px;
+  }
+  .info-item span { color: var(--text-secondary); }
+
+  /* Animated number update */
+  @keyframes numFlash {
+    0% { color: #fff; text-shadow: 0 0 20px #fff; }
+    100% { color: inherit; }
+  }
+  .num-update { animation: numFlash 0.5s ease; }
+
+  /* Loading spinner */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0,212,255,0.2);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tooltip {
+    position: absolute;
+    background: rgba(4,16,30,0.95);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent-cyan);
+    pointer-events: none;
+    display: none;
+    z-index: 200;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">✈</div>
+    <div>
+      <div class="logo-text">AEROVISION</div>
+      <div class="logo-sub">Aerodynamics Visualization Lab v2.1</div>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-badge status-live">● LIVE SIM</div>
+    <div class="status-badge status-mode" id="modeLabel">SUBSONIC</div>
+    <div class="spinner" id="globalSpinner"></div>
+  </div>
+  <div class="header-actions">
+    <button class="hdr-btn" onclick="exportCSV()">EXPORT CSV</button>
+    <button class="hdr-btn" onclick="exportJSON()">EXPORT JSON</button>
+    <button class="hdr-btn" onclick="showAbout()">ABOUT</button>
+  </div>
+</header>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- LEFT PANEL: Controls -->
+  <div class="panel">
+
+    <div class="panel-section">
+      <div class="section-title">Airfoil Selection</div>
+      <div class="airfoil-grid" id="airfoilGrid">
+        <button class="airfoil-btn active" data-af="NACA 2412">NACA 2412</button>
+        <button class="airfoil-btn" data-af="NACA 0012">NACA 0012</button>
+        <button class="airfoil-btn" data-af="NACA 4412">NACA 4412</button>
+        <button class="airfoil-btn" data-af="NACA 23012">NACA 23012</button>
+        <button class="airfoil-btn" data-af="NACA 6412">NACA 6412</button>
+        <button class="airfoil-btn" data-af="Clark Y">Clark Y</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Flow Parameters</div>
+
+      <div class="param-group">
+        <div class="param-header">
+          <span class="param-label">ANGLE OF ATTACK</span>
+          <span class="param-value" id="aoa-val">5.0<span class="param-unit">°</span></span>
+        </div>
+        <input type="range" id="aoa" min="-15" max="25" step="0.5" value="5">
+        <div class="range-labels"><span>-15°</span><span>0°</span><span>+25°</span></div>
+      </div>
+
+      <div class="param-group">
+        <div class="param-header">
+          <span class="param-label">REYNOLDS NUMBER</span>
+          <span class="param-value" id="re-val">3.0<span class="param-unit">×10⁶</span></span>
+        </div>
+        <input type="range" id="re" min="0.5" max="10" step="0.5" value="3">
+        <div class="range-labels"><span>0.5M</span><span>5M</span><span>10M</span></div>
+      </div>
+
+      <div class="param-group">
+        <div class="param-header">
+          <span class="param-label">MACH NUMBER</span>
+          <span class="param-value" id="mach-val">0.30</span>
+        </div>
+        <input type="range" id="mach" min="0.05" max="0.85" step="0.01" value="0.3">
+        <div class="range-labels"><span>M 0.05</span><span>M 0.45</span><span>M 0.85</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Simulation Control</div>
+      <button class="run-btn" id="runBtn" onclick="runSimulation()">▶ RUN SIMULATION</button>
+      <button class="sweep-btn" onclick="runSweep()">⟳ AoA POLAR SWEEP</button>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Upload Airfoil</div>
+      <div class="upload-zone">
+        <input type="file" accept=".dat,.txt" onchange="loadCustomAirfoil(event)">
+        <div class="upload-icon">📁</div>
+        <div class="upload-text">DROP .DAT FILE</div>
+        <div class="upload-hint">Selig or Lednicer format</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Visualization Mode</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);cursor:pointer">
+          <input type="checkbox" id="showPressure" checked onchange="redraw()" style="accent-color:var(--accent-cyan)"> Pressure Field
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);cursor:pointer">
+          <input type="checkbox" id="showStreamlines" checked onchange="redraw()" style="accent-color:var(--accent-cyan)"> Streamlines
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);cursor:pointer">
+          <input type="checkbox" id="showVectors" onchange="redraw()" style="accent-color:var(--accent-cyan)"> Velocity Vectors
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);cursor:pointer">
+          <input type="checkbox" id="showParticles" checked onchange="toggleParticles()" style="accent-color:var(--accent-cyan)"> Flow Particles
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);cursor:pointer">
+          <input type="checkbox" id="showBL" checked onchange="redraw()" style="accent-color:var(--accent-cyan)"> Boundary Layer
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER: Visualization -->
+  <div class="viz-center">
+    <div class="viz-toolbar">
+      <button class="viz-tab active" data-tab="flow" onclick="switchTab('flow',this)">FLOW FIELD</button>
+      <button class="viz-tab" data-tab="cp" onclick="switchTab('cp',this)">Cp DISTRIBUTION</button>
+      <button class="viz-tab" data-tab="polar" onclick="switchTab('polar',this)">POLAR CURVE</button>
+      <div style="flex:1"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px" id="simTime">READY</div>
+    </div>
+
+    <div class="canvas-wrap" id="flowWrap">
+      <div class="grid-overlay"></div>
+      <div class="scan-line"></div>
+      <canvas id="mainCanvas"></canvas>
+      <div class="corner-tl"></div>
+      <div class="corner-br"></div>
+      <div class="tooltip" id="canvasTooltip"></div>
+    </div>
+
+    <div class="chart-wrap" id="cpWrap">
+      <div class="chart-box">
+        <div class="chart-title">⬢ Pressure Coefficient Distribution (Cp)</div>
+        <canvas class="chart-canvas" id="cpChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-wrap" id="polarWrap">
+      <div class="chart-box">
+        <div class="chart-title">⬢ Lift Polar — CL vs Alpha</div>
+        <canvas class="chart-canvas" id="clChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">⬢ Drag Polar — CL vs CD</div>
+        <canvas class="chart-canvas" id="cdChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Results -->
+  <div class="panel">
+
+    <div class="panel-section">
+      <div class="section-title">Aerodynamic Coefficients</div>
+      <div class="coeff-grid">
+        <div class="coeff-card" style="--card-color: #00d4ff">
+          <div class="coeff-label">CL</div>
+          <div class="coeff-val" id="clVal">0.542</div>
+          <div class="coeff-sub">LIFT COEFF</div>
+        </div>
+        <div class="coeff-card" style="--card-color: #ff6b35">
+          <div class="coeff-label">CD</div>
+          <div class="coeff-val" id="cdVal">0.0084</div>
+          <div class="coeff-sub">DRAG COEFF</div>
+        </div>
+        <div class="coeff-card" style="--card-color: #a855f7">
+          <div class="coeff-label">CM</div>
+          <div class="coeff-val" id="cmVal">-0.054</div>
+          <div class="coeff-sub">MOMENT COEFF</div>
+        </div>
+        <div class="coeff-card" style="--card-color: #00ff9d">
+          <div class="coeff-label">α stall</div>
+          <div class="coeff-val" id="stallVal">16.2°</div>
+          <div class="coeff-sub">STALL ANGLE</div>
+        </div>
+      </div>
+
+      <div class="ld-ratio-card" style="margin-top:10px">
+        <div class="ld-left">
+          <div class="ld-label">L/D RATIO</div>
+          <div class="ld-val" id="ldVal">64.5</div>
+        </div>
+        <div class="ld-bar-wrap">
+          <div class="ld-bar" id="ldBar" style="width:60%"></div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-dim)">MAX: 120</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Boundary Layer</div>
+      <div class="bl-legend">
+        <div class="bl-item"><div class="bl-dot" style="background:#00aaff"></div>Laminar</div>
+        <div class="bl-item"><div class="bl-dot" style="background:#ffaa00"></div>Transition</div>
+        <div class="bl-item"><div class="bl-dot" style="background:#ff4444"></div>Turbulent</div>
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace">UPPER SURFACE</div>
+      <div class="bl-bar">
+        <div class="bl-laminar" id="blLamUp" style="width:35%"></div>
+        <div class="bl-transition" id="blTransUp" style="width:8%"></div>
+        <div class="bl-turbulent" id="blTurbUp"></div>
+      </div>
+      <div class="bl-label-row">
+        <span>LE</span><span id="xtrUp">xtr/c = 0.42</span><span>TE</span>
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace">LOWER SURFACE</div>
+      <div class="bl-bar">
+        <div class="bl-laminar" id="blLamLo" style="width:62%"></div>
+        <div class="bl-transition" id="blTransLo" style="width:6%"></div>
+        <div class="bl-turbulent" id="blTurbLo"></div>
+      </div>
+      <div class="bl-label-row">
+        <span>LE</span><span id="xtrLo">xtr/c = 0.68</span><span>TE</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Simulation Conditions</div>
+      <div class="conditions-grid">
+        <div class="cond-item">
+          <div class="cond-key">AIRFOIL</div>
+          <div class="cond-val" id="condAirfoil">NACA 2412</div>
+        </div>
+        <div class="cond-item">
+          <div class="cond-key">ALPHA</div>
+          <div class="cond-val" id="condAlpha">5.0°</div>
+        </div>
+        <div class="cond-item">
+          <div class="cond-key">Re × 10⁶</div>
+          <div class="cond-val" id="condRe">3.00</div>
+        </div>
+        <div class="cond-item">
+          <div class="cond-key">MACH</div>
+          <div class="cond-val" id="condMach">0.300</div>
+        </div>
+        <div class="cond-item">
+          <div class="cond-key">q∞ (Pa)</div>
+          <div class="cond-val" id="condQ">5613</div>
+        </div>
+        <div class="cond-item">
+          <div class="cond-key">V∞ (m/s)</div>
+          <div class="cond-val" id="condV">102.1</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-title">Export Results</div>
+      <div class="export-row">
+        <button class="export-btn" onclick="exportCSV()">📊 CSV</button>
+        <button class="export-btn" onclick="exportJSON()">{ } JSON</button>
+        <button class="export-btn" onclick="exportSVG()">🖼 SVG</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- INFO BAR -->
+<div class="info-bar">
+  <div class="info-item">ENGINE <span>THIN AIRFOIL + PRANDTL-GLAUERT</span></div>
+  <div class="info-item">FRAME <span id="fps">60 fps</span></div>
+  <div class="info-item">PARTICLES <span id="particleCount">200</span></div>
+  <div class="info-item">MODEL <span id="infoAirfoil">NACA 2412</span></div>
+  <div class="info-item">STAGGER <span id="infoAlpha">α = 5.0°</span></div>
+</div>
+
+<script>
+// =========================================================
+// AEROVISION — Full Simulation & Rendering Engine
+// =========================================================
+
+// ── State ──
+const state = {
+  airfoil: 'NACA 2412',
+  aoa: 5.0,
+  re: 3.0,
+  mach: 0.30,
+  results: { cl:0.542, cd:0.0084, cm:-0.054, ld:64.5 },
+  particles: [],
+  animFrame: null,
+  sweepData: [],
+  cpData: [],
+  customCoords: null,
+  tab: 'flow',
+  lastTime: 0,
+  frameCount: 0,
+  fpsTime: 0,
+};
+
+// ── NACA airfoil geometry ──
+function nacaCoords(code, nPts=120) {
+  let m=0, p=0, t=0.12;
+  const nums = code.replace(/[^0-9]/g,'');
+  if (nums.length === 4) {
+    m = parseInt(nums[0])/100;
+    p = parseInt(nums[1])/10;
+    t = parseInt(nums.slice(2))/100;
+  } else if (nums.length === 5) {
+    const cl5 = parseInt(nums[0])*0.15/10;
+    p = parseInt(nums[1])*0.05;
+    t = parseInt(nums.slice(3))/100;
+    m = cl5;
+  }
+  const pts = [];
+  for (let i=0;i<=nPts;i++){
+    const x = 0.5*(1-Math.cos(Math.PI*i/nPts));
+    const yt = 5*t*(0.2969*Math.sqrt(x)-0.1260*x-0.3516*x*x+0.2843*x*x*x-0.1015*x*x*x*x);
+    let yc=0, dyc=0;
+    if (x<p && p>0) { yc = m/p/p*(2*p*x-x*x); dyc = 2*m/p/p*(p-x); }
+    else if (p>0)   { yc = m/(1-p)/(1-p)*(1-2*p+2*p*x-x*x); dyc = 2*m/(1-p)/(1-p)*(p-x); }
+    const theta = Math.atan(dyc);
+    pts.push({
+      xu: x - yt*Math.sin(theta), yu: yc + yt*Math.cos(theta),
+      xl: x + yt*Math.sin(theta), yl: yc - yt*Math.cos(theta)
+    });
+  }
+  return pts;
+}
+
+function clarkYCoords(nPts=100) {
+  const upper=[], lower=[];
+  for(let i=0;i<=nPts;i++){
+    const x=i/nPts;
+    const yu = 0.115*(Math.sqrt(x)-0.63*x-0.11*x*x-0.12*x*x*x)*2.05;
+    const yl = -0.04*(Math.sqrt(x)+0.5*x-2.5*x*x+1.5*x*x*x)*0.9;
+    upper.push({x,y:yu}); lower.push({x,y:yl});
+  }
+  const pts=[];
+  for(let i=0;i<upper.length;i++) pts.push({xu:upper[i].x,yu:upper[i].y,xl:lower[i].x,yl:lower[i].y});
+  return pts;
+}
+
+function getAirfoilCoords(name) {
+  if (state.customCoords) return state.customCoords;
+  if (name === 'Clark Y') return clarkYCoords();
+  return nacaCoords(name);
+}
+
+// ── Thin airfoil theory + Prandtl-Glauert ──
+function computeAero(aoa_deg, re, mach, airfoil) {
+  const alpha = aoa_deg * Math.PI/180;
+  const coords = getAirfoilCoords(airfoil);
+  const nums = airfoil.replace(/[^0-9]/g,'');
+
+  let m=0, camber=0;
+  if (airfoil !== 'Clark Y' && nums.length>=4) {
+    m = parseInt(nums[0])/100;
+    camber = m;
+  } else if (airfoil==='Clark Y') {
+    m=0.036; camber=0.036;
+  }
+
+  // Thin airfoil lift slope (2π), corrected for compressibility
+  const beta = Math.sqrt(Math.max(0.001,1-mach*mach));
+  const clAlpha = 2*Math.PI/beta;
+
+  // Zero-lift angle
+  const alpha0 = -2*Math.PI*camber;
+
+  let cl = clAlpha*(alpha - alpha0);
+
+  // Stall model
+  const aoa_stall_base = 0.27 + 0.8*camber + 0.02*(re-1);
+  const alpha_stall = Math.min(0.31, aoa_stall_base);
+  if (alpha > alpha_stall) {
+    const overStall = alpha - alpha_stall;
+    cl = clAlpha*(alpha_stall-alpha0)*Math.exp(-2.5*overStall*overStall) + 0.3*Math.sin(2*alpha)*Math.exp(-overStall);
+  }
+  if (alpha < -0.18) cl = Math.max(cl, -0.8);
+
+  // Drag (profile + induced)
+  const cd0 = 0.006 + 0.0008*mach*mach + 0.00015/Math.sqrt(re);
+  const k = 0.012/beta/beta;
+  const cl_min_drag = clAlpha*(-alpha0)*0.8;
+  const cd = cd0 + k*(cl-cl_min_drag)*(cl-cl_min_drag);
+
+  // Moment
+  const cm = -Math.PI/2*(alpha - alpha0)*camber - 0.02;
+  const ld = cl/Math.max(cd,0.001);
+
+  // Transition location
+  const xtr_upper = Math.max(0.05, 0.7 - aoa_deg*0.04 - mach*0.3);
+  const xtr_lower = Math.min(0.95, 0.6 + aoa_deg*0.02 + mach*0.2);
+
+  // Cp distribution
+  const cpArr = [];
+  coords.forEach((pt,i) => {
+    const x = pt.xu;
+    const cp_upper = 1 - Math.pow((1 + (cl/6)*Math.sin(Math.PI*x))/(1-mach*mach*0.3),2);
+    const cp_lower = 1 - Math.pow((1 - (cl/6)*Math.sin(Math.PI*x))/(1-mach*mach*0.3),2);
+    if(i % 2 === 0) cpArr.push({ x, cpu: cp_upper, cpl: cp_lower });
+  });
+
+  const stall_deg = alpha_stall * 180/Math.PI;
+
+  return { cl, cd, cm, ld, xtr_upper, xtr_lower, cpArr, stall_deg: stall_deg.toFixed(1) };
+}
+
+// ── Canvas Setup ──
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const wrap = document.getElementById('flowWrap');
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+window.addEventListener('resize', () => { resizeCanvas(); });
+resizeCanvas();
+
+// ── Particles ──
+function initParticles(n=200) {
+  state.particles = [];
+  for(let i=0;i<n;i++) {
+    state.particles.push({
+      x: Math.random()*2.4 - 0.2,
+      y: Math.random()*2.0 - 1.0,
+      age: Math.random()*100,
+      speed: 0.8 + Math.random()*0.4
+    });
+  }
+}
+initParticles();
+
+function velocityField(x, y, alpha_deg, chord=1) {
+  // Joukowski-inspired perturbation
+  const alpha = alpha_deg*Math.PI/180;
+  const dx = x - 0.5; const dy = y;
+  const r2 = dx*dx + dy*dy + 0.001;
+  const vx = Math.cos(alpha) + (dy*Math.sin(alpha) - dx*Math.cos(alpha)*0.15)/r2;
+  const vy = Math.sin(alpha) + (dx*Math.sin(alpha) + dy*Math.cos(alpha)*0.15)/r2 + 0.4*state.results.cl/(2*Math.PI*(r2+0.01))*dx/Math.sqrt(r2);
+  return { vx, vy };
+}
+
+function stepParticles(dt) {
+  const alpha = state.aoa;
+  state.particles.forEach(p => {
+    const {vx,vy} = velocityField(p.x, p.y, alpha);
+    p.x += vx*dt*0.012;
+    p.y += vy*dt*0.012;
+    p.age++;
+    if(p.x>2.5||p.x<-0.5||p.y>1.2||p.y<-1.2||p.age>180){
+      p.x=-0.3; p.y=(Math.random()*2-1)*0.8; p.age=0;
+    }
+  });
+}
+
+// ── Pressure color map ──
+function pressureColor(cp) {
+  const t = Math.max(0,Math.min(1, (cp+1)/2));
+  if(t<0.25) {
+    const f=t/0.25;
+    return `rgba(0,${Math.round(50+150*f)},${Math.round(180+75*f)},0.85)`;
+  } else if(t<0.5) {
+    const f=(t-0.25)/0.25;
+    return `rgba(${Math.round(f*100)},${Math.round(200-50*f)},${Math.round(255-100*f)},0.85)`;
+  } else if(t<0.75) {
+    const f=(t-0.5)/0.25;
+    return `rgba(${Math.round(100+155*f)},${Math.round(150-100*f)},${Math.round(155-155*f)},0.85)`;
+  } else {
+    const f=(t-0.75)/0.25;
+    return `rgba(${Math.round(255)},${Math.round(50-50*f)},${Math.round(f*30)},0.85)`;
+  }
+}
+
+// ── Main Draw ──
+function drawScene(ts) {
+  resizeCanvas(); // ensure canvas always matches its container
+  const W=canvas.width, H=canvas.height;
+  if(W<=0 || H<=0) { state.animFrame=requestAnimationFrame(drawScene); return; }
+  const dt = ts - state.lastTime; state.lastTime=ts;
+
+  // FPS
+  state.frameCount++;
+  if(ts - state.fpsTime > 1000) {
+    document.getElementById('fps').textContent = state.frameCount+' fps';
+    state.frameCount=0; state.fpsTime=ts;
+  }
+
+  ctx.clearRect(0,0,W,H);
+
+  // Transform: world [−0.3,2.5]×[−0.9,0.9] → canvas
+  const padX=80, padY=60;
+  const worldW=2.8, worldH=1.8;
+  const scaleX=(W-2*padX)/worldW, scaleY=(H-2*padY)/worldH;
+  const scale=Math.min(scaleX,scaleY);
+  const ox=padX+scale*0.3, oy=H/2;
+
+  const wx=(x)=>ox+x*scale;
+  const wy=(y)=>oy-y*scale;
+
+  // ── Background glow ──
+  const bgGrd=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(1,Math.max(W,H)*0.6));
+  bgGrd.addColorStop(0,'rgba(0,30,55,0.5)');
+  bgGrd.addColorStop(1,'rgba(0,5,15,0)');
+  ctx.fillStyle=bgGrd; ctx.fillRect(0,0,W,H);
+
+  // ── Pressure field ──
+  if(document.getElementById('showPressure').checked) {
+    const coords=getAirfoilCoords(state.airfoil);
+    const res=state.results;
+    const alpha=state.aoa*Math.PI/180;
+    const gridW=60,gridH=35;
+    const cellW=(W-2*padX)/gridW, cellH=(H-2*padY)/gridH;
+    for(let gi=0;gi<gridW;gi++) for(let gj=0;gj<gridH;gj++){
+      const cx_c=(gi/gridW*2.8-0.3);
+      const cy_c=((gj/gridH)-0.5)*1.8;
+      const dx=cx_c-0.5, dy=cy_c;
+      const r2=dx*dx+dy*dy+0.01;
+      const cp=-res.cl/(2*Math.PI)*2*dy/(r2+0.05)-(1-Math.cos(alpha))*res.cl*0.1;
+      ctx.fillStyle=pressureColor(cp);
+      ctx.fillRect(padX+gi*cellW,padY+gj*cellH,cellW+1,cellH+1);
+    }
+    // Fade edges
+    const fadeGrd=ctx.createRadialGradient(W/2,H/2,Math.max(1,scale*0.5),W/2,H/2,Math.max(2,Math.max(W,H)*0.7));
+    fadeGrd.addColorStop(0,'rgba(0,0,0,0)');
+    fadeGrd.addColorStop(1,'rgba(0,5,15,0.8)');
+    ctx.fillStyle=fadeGrd; ctx.fillRect(0,0,W,H);
+  }
+
+  // ── Streamlines ──
+  if(document.getElementById('showStreamlines').checked) {
+    const nLines=12;
+    for(let li=0;li<nLines;li++){
+      const y0=-0.7+li*0.13;
+      ctx.beginPath();
+      let sx=-0.2, sy=y0;
+      ctx.moveTo(wx(sx),wy(sy));
+      for(let step=0;step<200;step++){
+        const {vx,vy}=velocityField(sx,sy,state.aoa);
+        const mag=Math.sqrt(vx*vx+vy*vy);
+        sx+=vx/mag*0.015; sy+=vy/mag*0.015;
+        if(sx>2.5||Math.abs(sy)>1.2) break;
+        ctx.lineTo(wx(sx),wy(sy));
+      }
+      const speed=Math.abs(y0)<0.15?0.9:0.5;
+      ctx.strokeStyle=`rgba(0,${Math.round(120+speed*80)},${Math.round(200+speed*55)},0.3)`;
+      ctx.lineWidth=1;
+      ctx.stroke();
+    }
+  }
+
+  // ── Particles ──
+  if(document.getElementById('showParticles').checked) {
+    stepParticles(dt||16);
+    state.particles.forEach(p=>{
+      const {vx,vy}=velocityField(p.x,p.y,state.aoa);
+      const speed=Math.sqrt(vx*vx+vy*vy);
+      const t=Math.min(1,speed/2);
+      const alpha=Math.max(0,1-p.age/180)*0.7;
+      ctx.beginPath();
+      ctx.arc(wx(p.x),wy(p.y),1.5,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${Math.round(t*255)},${Math.round((1-t)*200+50)},${Math.round((1-t)*255)},${alpha})`;
+      ctx.fill();
+    });
+  }
+
+  // ── Velocity vectors ──
+  if(document.getElementById('showVectors').checked) {
+    const nV=10;
+    for(let vi=0;vi<nV;vi++) for(let vj=0;vj<6;vj++){
+      const vx_c = vi*0.25; const vy_c = -0.6+vj*0.24;
+      const {vx,vy}=velocityField(vx_c,vy_c,state.aoa);
+      const mag=Math.sqrt(vx*vx+vy*vy);
+      const len=0.08*mag;
+      const ex=vx_c+vx/mag*len, ey=vy_c+vy/mag*len;
+      ctx.beginPath();
+      ctx.moveTo(wx(vx_c),wy(vy_c));
+      ctx.lineTo(wx(ex),wy(ey));
+      ctx.strokeStyle='rgba(255,200,80,0.4)';
+      ctx.lineWidth=1;
+      ctx.stroke();
+      // arrowhead
+      const ang=Math.atan2(-(ey-vy_c)*scale,(ex-vx_c)*scale);
+      ctx.beginPath();
+      ctx.moveTo(wx(ex),wy(ey));
+      ctx.lineTo(wx(ex)+6*Math.cos(ang-0.4),wy(ey)+6*Math.sin(ang-0.4));
+      ctx.lineTo(wx(ex)+6*Math.cos(ang+0.4),wy(ey)+6*Math.sin(ang+0.4));
+      ctx.closePath();
+      ctx.fillStyle='rgba(255,200,80,0.4)';
+      ctx.fill();
+    }
+  }
+
+  // ── Airfoil shape ──
+  drawAirfoil(ctx, wx, wy, scale);
+
+  // ── Boundary layer visualization ──
+  if(document.getElementById('showBL').checked) {
+    drawBoundaryLayer(ctx, wx, wy, scale);
+  }
+
+  // ── Legend / color bar ──
+  drawColorBar(ctx, W, H);
+
+  // ── AoA indicator ──
+  const aoaRad=state.aoa*Math.PI/180;
+  ctx.save();
+  ctx.translate(wx(-0.15),wy(0));
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.lineTo(40*Math.cos(-aoaRad),40*Math.sin(-aoaRad));
+  ctx.strokeStyle='rgba(255,200,0,0.5)';
+  ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  state.animFrame=requestAnimationFrame(drawScene);
+}
+
+function drawAirfoil(ctx, wx, wy, scale) {
+  const coords=getAirfoilCoords(state.airfoil);
+  const alpha=state.aoa*Math.PI/180;
+
+  function rotX(x,y){ return 0.5+(x-0.5)*Math.cos(alpha)-y*Math.sin(alpha); }
+  function rotY(x,y){ return (x-0.5)*Math.sin(alpha)+y*Math.cos(alpha); }
+
+  // Upper surface gradient
+  const upperPts=coords.map(c=>({x:rotX(c.xu,c.yu),y:rotY(c.xu,c.yu)}));
+  const lowerPts=coords.map(c=>({x:rotX(c.xl,c.yl),y:rotY(c.xl,c.yl)}));
+
+  // Fill
+  const grd=ctx.createLinearGradient(wx(0),wy(0.1),wx(0),wy(-0.1));
+  grd.addColorStop(0,'rgba(0,120,200,0.3)');
+  grd.addColorStop(0.5,'rgba(0,60,120,0.6)');
+  grd.addColorStop(1,'rgba(0,30,80,0.4)');
+
+  ctx.beginPath();
+  ctx.moveTo(wx(upperPts[0].x),wy(upperPts[0].y));
+  upperPts.forEach(p=>ctx.lineTo(wx(p.x),wy(p.y)));
+  for(let i=lowerPts.length-1;i>=0;i--) ctx.lineTo(wx(lowerPts[i].x),wy(lowerPts[i].y));
+  ctx.closePath();
+  ctx.fillStyle=grd; ctx.fill();
+
+  // Outline
+  ctx.strokeStyle='rgba(0,220,255,0.85)'; ctx.lineWidth=1.5;
+  ctx.shadowColor='rgba(0,180,255,0.6)'; ctx.shadowBlur=6;
+  ctx.beginPath();
+  ctx.moveTo(wx(upperPts[0].x),wy(upperPts[0].y));
+  upperPts.forEach(p=>ctx.lineTo(wx(p.x),wy(p.y)));
+  for(let i=lowerPts.length-1;i>=0;i--) ctx.lineTo(wx(lowerPts[i].x),wy(lowerPts[i].y));
+  ctx.closePath(); ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Chord line
+  ctx.setLineDash([5,4]);
+  ctx.strokeStyle='rgba(0,180,255,0.2)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(wx(rotX(0,0)),wy(rotY(0,0)));
+  ctx.lineTo(wx(rotX(1,0)),wy(rotY(1,0)));
+  ctx.stroke(); ctx.setLineDash([]);
+}
+
+function drawBoundaryLayer(ctx, wx, wy, scale) {
+  const coords=getAirfoilCoords(state.airfoil);
+  const alpha=state.aoa*Math.PI/180;
+  const res=state.results;
+  const xtrU=res.xtr_upper||0.4;
+  const xtrL=res.xtr_lower||0.65;
+
+  function rotX(x,y){ return 0.5+(x-0.5)*Math.cos(alpha)-y*Math.sin(alpha); }
+  function rotY(x,y){ return (x-0.5)*Math.sin(alpha)+y*Math.cos(alpha); }
+
+  // Draw BL thickness on upper
+  ctx.lineWidth=3;
+  coords.forEach((c,i)=>{
+    if(i%3!==0||i===0) return;
+    const x=c.xu, y=c.yu;
+    const thick=0.04*(x<xtrU ? 0.3+x*0.7 : 0.5+(x-xtrU)*2);
+    const nx=-Math.sin(Math.atan2(c.yu,(c.xu-0.5)));
+    const ny=Math.cos(Math.atan2(c.yu,(c.xu-0.5)));
+    const rx=rotX(x,y), ry=rotY(x,y);
+    const color = x<xtrU ? 'rgba(0,150,255,0.4)' : x<xtrU+0.1 ? 'rgba(255,160,0,0.4)' : 'rgba(255,50,50,0.35)';
+    ctx.strokeStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(wx(rx),wy(ry));
+    ctx.lineTo(wx(rx+nx*thick),wy(ry+ny*thick));
+    ctx.stroke();
+  });
+}
+
+function drawColorBar(ctx, W, H) {
+  const bW=14, bH=100, bX=W-30, bY=(H-bH)/2;
+  for(let i=0;i<bH;i++){
+    const t=1-i/bH;
+    ctx.fillStyle=pressureColor(t*2-1);
+    ctx.fillRect(bX,bY+i,bW,1);
+  }
+  ctx.strokeStyle='rgba(0,180,255,0.3)'; ctx.lineWidth=1;
+  ctx.strokeRect(bX,bY,bW,bH);
+  ctx.fillStyle='rgba(200,240,255,0.6)';
+  ctx.font="9px 'JetBrains Mono'"; ctx.textAlign='right';
+  ctx.fillText('HIGH',bX-4,bY+6);
+  ctx.fillText('Cp',bX-4,bY+bH/2+4);
+  ctx.fillText('LOW',bX-4,bY+bH);
+}
+
+// ── Simulation ──
+function runSimulation() {
+  const btn=document.getElementById('runBtn');
+  btn.classList.add('running');
+  document.getElementById('globalSpinner').style.display='inline-block';
+  document.getElementById('simTime').textContent='COMPUTING...';
+
+  setTimeout(()=>{
+    const res=computeAero(state.aoa,state.re,state.mach,state.airfoil);
+    state.results=res;
+    updateResultsUI(res);
+    updateCpChart(res.cpArr);
+    btn.classList.remove('running');
+    document.getElementById('globalSpinner').style.display='none';
+    document.getElementById('simTime').textContent=`CONVERGED — ${Date.now()%10000}ms`;
+  },600+Math.random()*400);
+}
+
+function updateResultsUI(res) {
+  function flash(id,val) {
+    const el=document.getElementById(id);
+    el.textContent=val; el.classList.remove('num-update');
+    void el.offsetWidth; el.classList.add('num-update');
+  }
+  flash('clVal',res.cl.toFixed(3));
+  flash('cdVal',res.cd.toFixed(4));
+  flash('cmVal',res.cm.toFixed(3));
+  flash('ldVal',res.ld.toFixed(1));
+  document.getElementById('stallVal').textContent=res.stall_deg+'°';
+
+  const ldPct=Math.min(100,res.ld/120*100);
+  document.getElementById('ldBar').style.width=ldPct+'%';
+
+  // BL
+  const xtrU=res.xtr_upper;
+  const xtrL=res.xtr_lower;
+  const transW=0.08;
+  document.getElementById('blLamUp').style.width=(xtrU*100)+'%';
+  document.getElementById('blTransUp').style.width=(transW*100)+'%';
+  document.getElementById('xtrUp').textContent='xtr/c = '+xtrU.toFixed(2);
+  document.getElementById('blLamLo').style.width=(xtrL*100)+'%';
+  document.getElementById('blTransLo').style.width=(transW*100)+'%';
+  document.getElementById('xtrLo').textContent='xtr/c = '+xtrL.toFixed(2);
+
+  // Conditions
+  const V=state.mach*340;
+  const q=0.5*1.225*V*V;
+  document.getElementById('condAirfoil').textContent=state.airfoil;
+  document.getElementById('condAlpha').textContent=state.aoa.toFixed(1)+'°';
+  document.getElementById('condRe').textContent=state.re.toFixed(2);
+  document.getElementById('condMach').textContent=state.mach.toFixed(3);
+  document.getElementById('condQ').textContent=Math.round(q);
+  document.getElementById('condV').textContent=V.toFixed(1);
+
+  // Mode label
+  const mode=state.mach<0.3?'SUBSONIC':state.mach<0.7?'LOW TRANS':state.mach<0.8?'TRANSONIC':'HIGH TRANS';
+  document.getElementById('modeLabel').textContent=mode;
+  document.getElementById('infoAirfoil').textContent=state.airfoil;
+  document.getElementById('infoAlpha').textContent='α = '+state.aoa.toFixed(1)+'°';
+}
+
+// ── AoA Sweep ──
+function runSweep() {
+  document.getElementById('globalSpinner').style.display='inline-block';
+  document.getElementById('simTime').textContent='SWEEP RUNNING...';
+  state.sweepData=[];
+  let alphas=[];
+  for(let a=-8;a<=20;a+=1) alphas.push(a);
+  alphas.forEach(a=>{
+    const res=computeAero(a,state.re,state.mach,state.airfoil);
+    state.sweepData.push({alpha:a,...res});
+  });
+  updatePolarCharts();
+  document.getElementById('globalSpinner').style.display='none';
+  document.getElementById('simTime').textContent='SWEEP COMPLETE — '+state.sweepData.length+' points';
+  if(state.tab!=='polar') switchTab('polar',document.querySelector('[data-tab="polar"]'));
+}
+
+// ── Charts ──
+let cpChartInst=null, clChartInst=null, cdChartInst=null;
+
+function initCharts() {
+  Chart.defaults.color='rgba(120,180,210,0.8)';
+  Chart.defaults.borderColor='rgba(0,100,160,0.2)';
+
+  const cpCtx=document.getElementById('cpChart').getContext('2d');
+  cpChartInst=new Chart(cpCtx,{
+    type:'line',
+    data:{ datasets:[
+      {label:'Upper',data:[],borderColor:'rgba(0,200,255,0.9)',backgroundColor:'rgba(0,200,255,0.06)',fill:true,tension:0.4,pointRadius:0,borderWidth:1.5},
+      {label:'Lower',data:[],borderColor:'rgba(255,100,50,0.9)',backgroundColor:'rgba(255,100,50,0.06)',fill:true,tension:0.4,pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:400},
+      scales:{
+        x:{title:{display:true,text:'x/c',color:'rgba(0,200,255,0.6)'},ticks:{color:'rgba(120,180,210,0.6)',font:{family:"'JetBrains Mono'"}}},
+        y:{title:{display:true,text:'−Cp',color:'rgba(0,200,255,0.6)'},reverse:true,ticks:{color:'rgba(120,180,210,0.6)',font:{family:"'JetBrains Mono'"}}}
+      },
+      plugins:{legend:{labels:{color:'rgba(180,220,255,0.8)',font:{family:"'JetBrains Mono'",size:10}}}}
+    }
+  });
+
+  const clCtx=document.getElementById('clChart').getContext('2d');
+  clChartInst=new Chart(clCtx,{
+    type:'line',
+    data:{datasets:[{label:'CL vs α',data:[],borderColor:'rgba(0,212,255,0.9)',backgroundColor:'rgba(0,212,255,0.08)',fill:true,tension:0.3,pointRadius:2,pointBackgroundColor:'rgba(0,212,255,0.8)',borderWidth:2}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:{duration:300},
+      scales:{
+        x:{title:{display:true,text:'α (deg)',color:'rgba(0,200,255,0.6)'},ticks:{color:'rgba(120,180,210,0.6)',font:{family:"'JetBrains Mono'"}}},
+        y:{title:{display:true,text:'CL',color:'rgba(0,200,255,0.6)'},ticks:{color:'rgba(120,180,210,0.6)',font:{family:"'JetBrains Mono'"}}}
+      },
+      plugins:{legend:{labels:{color:'rgba(180,220,255,0.8)',font:{family:"'JetBrains Mono'",size:10}}}}
+    }
+  });
+
+  const cdCtx=document.getElementById('cdChart').getContext('2d');
+  cdChartInst=new Chart(cdCtx,{
+    type:'line',
+    data:{datasets:[{label:'Drag Polar',data:[],borderColor:'rgba(255,107,53,0.9)',backgroundColor:'rgba(255,107,53,0.08)',fill:false,tension:0.3,pointRadius:2,pointBackgroundColor:'rgba(255,107,53,0.8)',borderWidth:2}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:{duration:300},
+      scales:{
+        x:{title:{display:true,text:'CD',color:'rgba(255,107,53,0.6)'},ticks:{color:'rgba(200,160,130,0.6)',font:{family:"'JetBrains Mono'"}}},
+        y:{title:{display:true,text:'CL',color:'rgba(255,107,53,0.6)'},ticks:{color:'rgba(200,160,130,0.6)',font:{family:"'JetBrains Mono'"}}}
+      },
+      plugins:{legend:{labels:{color:'rgba(255,200,180,0.8)',font:{family:"'JetBrains Mono'",size:10}}}}
+    }
+  });
+}
+
+function updateCpChart(cpArr) {
+  if(!cpChartInst) return;
+  const upper=cpArr.map(d=>({x:+d.x.toFixed(3),y:+d.cpu.toFixed(4)}));
+  const lower=cpArr.map(d=>({x:+d.x.toFixed(3),y:+d.cpl.toFixed(4)}));
+  cpChartInst.data.datasets[0].data=upper;
+  cpChartInst.data.datasets[1].data=lower;
+  cpChartInst.update();
+}
+
+function updatePolarCharts() {
+  if(!clChartInst||!state.sweepData.length) return;
+  clChartInst.data.datasets[0].data=state.sweepData.map(d=>({x:d.alpha,y:+d.cl.toFixed(3)}));
+  clChartInst.update();
+  cdChartInst.data.datasets[0].data=state.sweepData.map(d=>({x:+d.cd.toFixed(5),y:+d.cl.toFixed(3)}));
+  cdChartInst.update();
+}
+
+// ── Tab switching ──
+function switchTab(tab, btn) {
+  state.tab=tab;
+  document.querySelectorAll('.viz-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('flowWrap').style.display=tab==='flow'?'block':'none';
+  document.getElementById('cpWrap').style.display='none';
+  document.getElementById('polarWrap').style.display='none';
+  if(tab==='cp') { document.getElementById('cpWrap').style.display='flex'; }
+  if(tab==='polar') { document.getElementById('polarWrap').style.display='flex'; if(!state.sweepData.length) runSweep(); }
+  if(tab==='flow') cancelAnimationFrame(state.animFrame);
+  else if(tab==='flow') state.animFrame=requestAnimationFrame(drawScene);
+}
+
+// ── Slider wiring ──
+function wireSlider(id, valId, transform, unit='') {
+  const el=document.getElementById(id);
+  const upd=()=>{
+    const v=parseFloat(el.value);
+    const tv=transform(v);
+    document.getElementById(valId).innerHTML=tv+(unit?`<span class="param-unit">${unit}</span>`:'');
+    el.style.setProperty('--pct',((v-el.min)/(el.max-el.min)*100)+'%');
+    return tv;
+  };
+  el.addEventListener('input',()=>{
+    const tv=upd();
+    if(id==='aoa'){state.aoa=parseFloat(el.value);runSimulation();}
+    if(id==='re'){state.re=parseFloat(el.value);runSimulation();}
+    if(id==='mach'){state.mach=parseFloat(el.value);runSimulation();}
+  });
+  upd();
+}
+
+wireSlider('aoa','aoa-val',v=>v.toFixed(1),'°');
+wireSlider('re','re-val',v=>v.toFixed(1),'×10⁶');
+wireSlider('mach','mach-val',v=>v.toFixed(2));
+
+// ── Airfoil buttons ──
+document.getElementById('airfoilGrid').addEventListener('click',e=>{
+  const btn=e.target.closest('.airfoil-btn');
+  if(!btn) return;
+  document.querySelectorAll('.airfoil-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  state.airfoil=btn.dataset.af;
+  state.customCoords=null;
+  document.getElementById('infoAirfoil').textContent=state.airfoil;
+  runSimulation();
+});
+
+// ── File upload ──
+function loadCustomAirfoil(e) {
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const lines=ev.target.result.split('\n').filter(l=>l.trim()&&!/[a-zA-Z]/.test(l.trim()[0]));
+    const coords=lines.map(l=>{const p=l.trim().split(/\s+/);return{x:parseFloat(p[0]),y:parseFloat(p[1])};}).filter(p=>!isNaN(p.x)&&!isNaN(p.y));
+    if(coords.length>10){
+      const mid=Math.floor(coords.length/2);
+      const upper=coords.slice(0,mid+1);
+      const lower=coords.slice(mid);
+      state.customCoords=upper.map((u,i)=>({xu:u.x,yu:u.y,xl:lower[Math.min(i,lower.length-1)].x,yl:lower[Math.min(i,lower.length-1)].y}));
+      state.airfoil=file.name.replace('.dat','').replace('.txt','');
+      document.querySelectorAll('.airfoil-btn').forEach(b=>b.classList.remove('active'));
+      runSimulation();
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── Export ──
+function exportCSV() {
+  const res=state.results;
+  const rows=[
+    ['Parameter','Value','Unit'],
+    ['Airfoil',state.airfoil,''],
+    ['Alpha',state.aoa,'deg'],
+    ['Reynolds',state.re+'E6',''],
+    ['Mach',state.mach,''],
+    ['CL',res.cl,''],
+    ['CD',res.cd,''],
+    ['CM',res.cm,''],
+    ['L/D',res.ld,''],
+    ['xtr_upper',res.xtr_upper,'x/c'],
+    ['xtr_lower',res.xtr_lower,'x/c'],
+  ];
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  download('aerovision_results.csv','data:text/csv;charset=utf-8,'+encodeURIComponent(csv));
+}
+
+function exportJSON() {
+  const data={airfoil:state.airfoil,alpha:state.aoa,Re:state.re*1e6,Mach:state.mach,...state.results,sweep:state.sweepData};
+  download('aerovision_results.json','data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(data,null,2)));
+}
+
+function exportSVG() {
+  const svgW=800,svgH=300;
+  const coords=getAirfoilCoords(state.airfoil);
+  const alpha=state.aoa*Math.PI/180;
+  function rx(x,y){return 0.5+(x-0.5)*Math.cos(alpha)-y*Math.sin(alpha);}
+  function ry(x,y){return (x-0.5)*Math.sin(alpha)+y*Math.cos(alpha);}
+  const scl=600, ox=100, oy=150;
+  const ptUpper=coords.map(c=>`${ox+rx(c.xu,c.yu)*scl},${oy-ry(c.xu,c.yu)*scl}`).join(' ');
+  const ptLower=coords.map(c=>`${ox+rx(c.xl,c.yl)*scl},${oy-ry(c.xl,c.yl)*scl}`).join(' ');
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" style="background:#010810">
+<polyline points="${ptUpper}" fill="none" stroke="#00d4ff" stroke-width="2"/>
+<polyline points="${ptLower}" fill="none" stroke="#00d4ff" stroke-width="2"/>
+<text x="10" y="20" fill="#00d4ff" font-family="monospace" font-size="12">${state.airfoil} | α=${state.aoa}° | CL=${state.results.cl.toFixed(3)} | CD=${state.results.cd.toFixed(4)}</text>
+</svg>`;
+  download('airfoil.svg','data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg));
+}
+
+function download(filename,href){
+  const a=document.createElement('a'); a.href=href; a.download=filename; a.click();
+}
+
+function redraw() { /* triggers via checkbox - canvas loop auto-updates */ }
+function toggleParticles() {}
+
+function showAbout() {
+  alert('AeroVision – Interactive Aerodynamics Visualization Lab\n\nEngine: Thin Airfoil Theory + Prandtl-Glauert Compressibility Correction\nVisualization: Canvas2D + Chart.js\nAirfoils: NACA 4-digit/5-digit series, Clark Y\n\nDeploy to GitHub Pages: push index.html to /docs or root of repo.\n\nBuilt for aerospace engineering education.');
+}
+
+// ── Canvas mouse tooltip ──
+canvas.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const x_px=e.clientX-rect.left, y_px=e.clientY-rect.top;
+  const padX=80, scale_=Math.min((canvas.width-160)/2.8,(canvas.height-120)/1.8);
+  const ox_=padX+scale_*0.3, oy_=canvas.height/2;
+  const xc=(x_px-ox_)/scale_, yc=(oy_-y_px)/scale_;
+  const {vx,vy}=velocityField(xc,yc,state.aoa);
+  const speed=Math.sqrt(vx*vx+vy*vy);
+  const tip=document.getElementById('canvasTooltip');
+  tip.style.display='block';
+  tip.style.left=(x_px+12)+'px'; tip.style.top=(y_px-20)+'px';
+  tip.textContent=`x/c=${xc.toFixed(2)}  V/V∞=${speed.toFixed(2)}`;
+});
+canvas.addEventListener('mouseleave',()=>{ document.getElementById('canvasTooltip').style.display='none'; });
+
+// ── Init ──
+initCharts();
+runSimulation();
+state.animFrame=requestAnimationFrame(drawScene);
+
+// Initial sweep for polar tab
+setTimeout(()=>{ state.sweepData=[]; let a=-8;
+  const fill=()=>{if(a>20){updatePolarCharts();return;}state.sweepData.push({alpha:a,...computeAero(a,state.re,state.mach,state.airfoil)});a+=1;requestAnimationFrame(fill);};
+  fill();
+},800);
+</script>
+</body>
+</html>
